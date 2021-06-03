@@ -33,81 +33,52 @@ def get_text(client_sock, url):
 
 
 def server():
-    # server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_sock = socket.socket()
+    server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # server_sock = socket.socket()
     server_sock.bind(('localhost', 15000))
     server_sock.listen()
     max_threads = int(sys.argv[2])
-
     threads = []
     try:
         while True:
+            thread_connected = 0
+            n_urls = 0
+
+            client_sock, addr = server_sock.accept()  # read
+
             try:
-                client_sock, addr = server_sock.accept()  # read
-            except socket.error:
-                break
-            else:
-                n_threads = 0
-                thread_connected = 0
                 print('connect from', addr)
                 while True:
                     data = client_sock.recv(4096)
                     if not data:
                         break
-                    if n_threads == max_threads:
+                    if thread_connected == max_threads:
                         for th in threads:
                             th.join()
+                            n_urls += 1
+                            print(f"{n_urls} processed")
                         threads.clear()
+                        thread_connected = 0
                     threads.append(threading.Thread(target=get_text, args=(client_sock, data,)))
-                    n_threads += 1
+
                     threads[thread_connected].start()
-                    print(thread_connected)
-                    thread_connected = (thread_connected + 1) % max_threads
+
+                    thread_connected += 1
+            except:
+                break
             finally:
+                for th in threads:
+                    th.join()
+                    n_urls += 1
+                    print(f"{n_urls} processed")
+                threads.clear()
                 client_sock.close()
+    except:
+        pass
     finally:
         server_sock.close()
 
-
-# def client(client_sock,data):
-#     while True:
-#         yield 'read', client_sock
-#         # data = client_sock.recv(4096)  # read
-#
-#         if not data:
-#             break
-#         else:
-#             yield 'write', client_sock
-#             client_sock.send(data.decode().upper().encode())  # write
-#
-#     client_sock.close()
-
-
-# def event_loop():
-#     while any([tasks, to_read, to_write]):
-#
-#         while not tasks:
-#             ready_to_read, ready_to_write, _ = select(to_read, to_write, [])
-#
-#             for sock in ready_to_read:
-#                 tasks.append(to_read.pop(sock))
-#
-#             for sock in ready_to_write:
-#                 tasks.append(to_write.pop(sock))
-#
-#         try:
-#             task = tasks.pop(0)
-#             op_type, sock = next(task)
-#
-#             if op_type == 'read':
-#                 to_read[sock] = task
-#             elif op_type == 'write':
-#                 to_write[sock] = task
-#
-#         except StopIteration:
-#             pass
-#
 
 if __name__ == '__main__':
     # tasks.append(server())
